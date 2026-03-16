@@ -49,6 +49,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 type Runs = NonNullable<Awaited<ReturnType<typeof getJobResults>>>["rankingRuns"];
 type LeadResult = Runs[number]["results"][number];
 
+function getRankValue(companyRank: LeadResult["companyRank"]) {
+  return companyRank && companyRank > 0 ? companyRank : undefined;
+}
+
 function exportToCsv(results: LeadResult[], method: string) {
   const headers = [
     "Company Rank",
@@ -65,7 +69,7 @@ function exportToCsv(results: LeadResult[], method: string) {
   ];
 
   const rows = results.map((result) => [
-    result.companyRank ?? "",
+    getRankValue(result.companyRank) ?? "",
     result.qualified ? "Yes" : "No",
     result.score ?? "",
     result.personaRole ?? "",
@@ -109,7 +113,7 @@ function buildColumns(showPersonaRole: boolean): ColumnDef<LeadResult>[] {
   const columns: ColumnDef<LeadResult>[] = [
     {
       id: "companyRank",
-      accessorFn: (row) => row.companyRank ?? undefined,
+      accessorFn: (row) => getRankValue(row.companyRank),
       header: ({ column }) => (
         <button
           className="flex items-center gap-1"
@@ -120,9 +124,9 @@ function buildColumns(showPersonaRole: boolean): ColumnDef<LeadResult>[] {
         </button>
       ),
       size: 60,
-      sortUndefined: -1,
+      sortUndefined: "last",
       cell: ({ row }) => {
-        const rank = row.original.companyRank;
+        const rank = getRankValue(row.original.companyRank);
         return rank ? `#${rank}` : "—";
       },
     },
@@ -153,7 +157,7 @@ function buildColumns(showPersonaRole: boolean): ColumnDef<LeadResult>[] {
         </button>
       ),
       size: 70,
-      sortUndefined: -1,
+      sortUndefined: "last",
       cell: ({ row }) => (
         <span className="font-mono tabular-nums">
           {row.original.score ?? "—"}
