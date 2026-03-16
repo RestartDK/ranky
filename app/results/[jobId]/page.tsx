@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { ArrowLeft } from "@phosphor-icons/react";
 import { notFound, redirect } from "next/navigation";
 import { Header } from "@/components/header";
 import { Results } from "@/components/results";
@@ -31,7 +30,9 @@ export default async function ResultsPage({
       <main className="mx-auto max-w-6xl px-4 py-6">
         <Button asChild variant="ghost" size="sm" className="mb-4 gap-1.5">
           <Link href="/dashboard">
-            <ArrowLeft className="size-4" />
+            <span aria-hidden="true" className="text-xs">
+              &lt;-
+            </span>
             Back
           </Link>
         </Button>

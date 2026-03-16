@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { ArrowRight } from "@phosphor-icons/react";
 import { getSession } from "@/lib/session";
 import { RankyIcon } from "@/components/ranky-icon";
 import { Button } from "@/components/ui/button";
@@ -21,7 +20,9 @@ export default async function LandingPage() {
         <Button asChild size="lg">
           <Link href={session ? "/dashboard" : "/sign-in"}>
             Get Started
-            <ArrowRight className="size-4" data-icon="inline-end" />
+            <span aria-hidden="true" className="text-xs">
+              -&gt;
+            </span>
           </Link>
         </Button>
       </div>
