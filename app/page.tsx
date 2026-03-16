@@ -1,22 +1,11 @@
-"use client";
-
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import { ArrowRight } from "@phosphor-icons/react";
+import { getSession } from "@/lib/session";
 import { RankyIcon } from "@/components/ranky-icon";
-import { useRouter } from "next/navigation";
-import { authClient } from "@/lib/auth-client";
+import { Button } from "@/components/ui/button";
 
-export default function LandingPage() {
-  const router = useRouter();
-  const { data: session, isPending } = authClient.useSession();
-
-  const handleGetStarted = () => {
-    if (session) {
-      router.push("/dashboard");
-    } else {
-      router.push("/sign-in");
-    }
-  };
+export default async function LandingPage() {
+  const session = await getSession();
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-background">
@@ -29,9 +18,11 @@ export default function LandingPage() {
           Upload a CSV of leads and a persona spec to get AI-powered ranking
           and scoring.
         </p>
-        <Button size="lg" onClick={handleGetStarted} disabled={isPending}>
-          Get Started
-          <ArrowRight className="size-4" data-icon="inline-end" />
+        <Button asChild size="lg">
+          <Link href={session ? "/dashboard" : "/sign-in"}>
+            Get Started
+            <ArrowRight className="size-4" data-icon="inline-end" />
+          </Link>
         </Button>
       </div>
     </main>

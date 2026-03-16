@@ -2,36 +2,17 @@
 
 import * as React from "react";
 import {
-  useReactTable,
+  flexRender,
   getCoreRowModel,
-  getSortedRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
-  flexRender,
+  getSortedRowModel,
   type ColumnDef,
-  type SortingState,
   type ColumnFiltersState,
   type PaginationState,
+  type SortingState,
+  useReactTable,
 } from "@tanstack/react-table";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   ArrowDown,
   ArrowUp,
@@ -44,30 +25,29 @@ import {
   LinkedinLogo,
   MagnifyingGlass,
 } from "@phosphor-icons/react";
+import type { getJobResults } from "@/lib/results";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-interface LeadResult {
-  id: string;
-  qualified: boolean;
-  score: number | null;
-  personaRole: string | null;
-  companyRank: number | null;
-  rejectionReason: string | null;
-  lead: {
-    normalisedName: string | null;
-    normalisedTitle: string | null;
-    normalisedCompany: string | null;
-    normalisedFunction: string | null;
-    normalisedSeniority: string | null;
-    linkedinUrl: string | null;
-  } | null;
-}
-
-interface Run {
-  id: string;
-  method: string;
-  createdAt: string;
-  results: LeadResult[];
-}
+type Runs = NonNullable<Awaited<ReturnType<typeof getJobResults>>>["rankingRuns"];
+type LeadResult = Runs[number]["results"][number];
 
 function exportToCsv(results: LeadResult[], method: string) {
   const headers = [
@@ -84,18 +64,18 @@ function exportToCsv(results: LeadResult[], method: string) {
     "Rejection Reason",
   ];
 
-  const rows = results.map((r) => [
-    r.companyRank ?? "",
-    r.qualified ? "Yes" : "No",
-    r.score ?? "",
-    r.personaRole ?? "",
-    r.lead?.normalisedName ?? "",
-    r.lead?.normalisedTitle ?? "",
-    r.lead?.normalisedCompany ?? "",
-    r.lead?.normalisedFunction ?? "",
-    r.lead?.normalisedSeniority ?? "",
-    r.lead?.linkedinUrl ?? "",
-    r.rejectionReason ?? "",
+  const rows = results.map((result) => [
+    result.companyRank ?? "",
+    result.qualified ? "Yes" : "No",
+    result.score ?? "",
+    result.personaRole ?? "",
+    result.lead?.normalisedName ?? "",
+    result.lead?.normalisedTitle ?? "",
+    result.lead?.normalisedCompany ?? "",
+    result.lead?.normalisedFunction ?? "",
+    result.lead?.normalisedSeniority ?? "",
+    result.lead?.linkedinUrl ?? "",
+    result.rejectionReason ?? "",
   ]);
 
   const csv = [headers, ...rows]
@@ -106,21 +86,27 @@ function exportToCsv(results: LeadResult[], method: string) {
 
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `ranking-${method}-${Date.now()}.csv`;
-  a.click();
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `ranking-${method}-${Date.now()}.csv`;
+  anchor.click();
   URL.revokeObjectURL(url);
 }
 
 function SortIcon({ isSorted }: { isSorted: false | "asc" | "desc" }) {
-  if (isSorted === "asc") return <ArrowUp className="size-3" />;
-  if (isSorted === "desc") return <ArrowDown className="size-3" />;
+  if (isSorted === "asc") {
+    return <ArrowUp className="size-3" />;
+  }
+
+  if (isSorted === "desc") {
+    return <ArrowDown className="size-3" />;
+  }
+
   return <ArrowsDownUp className="size-3 opacity-40" />;
 }
 
 function buildColumns(showPersonaRole: boolean): ColumnDef<LeadResult>[] {
-  const cols: ColumnDef<LeadResult>[] = [
+  const columns: ColumnDef<LeadResult>[] = [
     {
       id: "companyRank",
       accessorFn: (row) => row.companyRank ?? undefined,
@@ -177,20 +163,24 @@ function buildColumns(showPersonaRole: boolean): ColumnDef<LeadResult>[] {
   ];
 
   if (showPersonaRole) {
-    cols.push({
+    columns.push({
       accessorKey: "personaRole",
       header: "Role",
       size: 100,
       enableSorting: false,
       cell: ({ row }) => {
         const role = row.original.personaRole;
-        if (!role) return "—";
+        if (!role) {
+          return "—";
+        }
+
         const variant =
           role === "Buyer"
             ? "default"
             : role === "Not Relevant"
               ? "destructive"
               : "secondary";
+
         return (
           <Badge variant={variant} className="text-[10px]">
             {role}
@@ -200,7 +190,7 @@ function buildColumns(showPersonaRole: boolean): ColumnDef<LeadResult>[] {
     });
   }
 
-  cols.push(
+  columns.push(
     {
       id: "name",
       accessorFn: (row) => row.lead?.normalisedName ?? "",
@@ -227,7 +217,7 @@ function buildColumns(showPersonaRole: boolean): ColumnDef<LeadResult>[] {
       size: 200,
       enableSorting: false,
       cell: ({ row }) => (
-        <span className="max-w-[200px] truncate block">
+        <span className="block max-w-[200px] truncate">
           {row.original.lead?.normalisedTitle ?? "—"}
         </span>
       ),
@@ -267,13 +257,16 @@ function buildColumns(showPersonaRole: boolean): ColumnDef<LeadResult>[] {
       enableSorting: false,
       cell: ({ row }) => {
         const url = row.original.lead?.linkedinUrl;
-        if (!url) return null;
+        if (!url) {
+          return null;
+        }
+
         return (
           <a
             href={url}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-muted-foreground hover:text-foreground transition-colors"
+            className="text-muted-foreground transition-colors hover:text-foreground"
           >
             <LinkedinLogo className="size-4" weight="fill" />
           </a>
@@ -287,9 +280,12 @@ function buildColumns(showPersonaRole: boolean): ColumnDef<LeadResult>[] {
       enableSorting: false,
       cell: ({ row }) => {
         const reason = row.original.rejectionReason;
-        if (!reason) return null;
+        if (!reason) {
+          return null;
+        }
+
         return (
-          <span className="max-w-[200px] truncate block text-muted-foreground">
+          <span className="block max-w-[200px] truncate text-muted-foreground">
             {reason}
           </span>
         );
@@ -297,7 +293,7 @@ function buildColumns(showPersonaRole: boolean): ColumnDef<LeadResult>[] {
     },
   );
 
-  return cols;
+  return columns;
 }
 
 function DataTablePagination<TData>({
@@ -376,7 +372,7 @@ function RunTable({
   run,
   showPersonaRole,
 }: {
-  run: Run;
+  run: Runs[number];
   showPersonaRole: boolean;
 }) {
   const [sorting, setSorting] = React.useState<SortingState>([
@@ -395,6 +391,8 @@ function RunTable({
     [showPersonaRole],
   );
 
+  // TanStack Table returns stateful helpers that React Compiler intentionally skips.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data: run.results,
     columns,
@@ -410,6 +408,7 @@ function RunTable({
     globalFilterFn: (row, _columnId, filterValue) => {
       const search = filterValue.toLowerCase();
       const lead = row.original.lead;
+
       return (
         (lead?.normalisedName?.toLowerCase().includes(search) ?? false) ||
         (lead?.normalisedTitle?.toLowerCase().includes(search) ?? false) ||
@@ -419,7 +418,7 @@ function RunTable({
     },
   });
 
-  const qualifiedCount = run.results.filter((r) => r.qualified).length;
+  const qualifiedCount = run.results.filter((result) => result.qualified).length;
   const rejectedCount = run.results.length - qualifiedCount;
 
   return (
@@ -431,7 +430,7 @@ function RunTable({
             <Input
               placeholder="Search leads…"
               value={globalFilter}
-              onChange={(e) => setGlobalFilter(e.target.value)}
+              onChange={(event) => setGlobalFilter(event.target.value)}
               className="h-8 w-[200px] pl-7 text-xs"
             />
           </div>
@@ -460,10 +459,7 @@ function RunTable({
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <TableHead
-                    key={header.id}
-                    style={{ width: header.getSize() }}
-                  >
+                  <TableHead key={header.id} style={{ width: header.getSize() }}>
                     {header.isPlaceholder
                       ? null
                       : flexRender(
@@ -476,7 +472,7 @@ function RunTable({
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows?.length ? (
+            {table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
@@ -511,33 +507,27 @@ function RunTable({
   );
 }
 
-export function ResultsView({ runs }: { runs: Run[] }) {
-  const hardRulesRun = runs.find((r) => r.method === "hard_rules");
-  const llmRun = runs.find((r) => r.method === "hard_rules_llm");
+export function Results({ runs }: { runs: Runs }) {
+  const hardRulesRun = runs.find((run) => run.method === "hard_rules");
+  const llmRun = runs.find((run) => run.method === "hard_rules_llm");
 
   if (!hardRulesRun && !llmRun) {
     return <p className="text-sm text-muted-foreground">No results found.</p>;
   }
 
-  const defaultTab = llmRun ? "llm" : "hard_rules";
-
   return (
-    <Tabs defaultValue={defaultTab}>
+    <Tabs defaultValue={llmRun ? "llm" : "hard_rules"}>
       <TabsList>
         {hardRulesRun && (
           <TabsTrigger value="hard_rules">Hard Rules Only</TabsTrigger>
         )}
-        {llmRun && (
-          <TabsTrigger value="llm">Hard Rules + LLM</TabsTrigger>
-        )}
+        {llmRun && <TabsTrigger value="llm">Hard Rules + LLM</TabsTrigger>}
       </TabsList>
-
       {hardRulesRun && (
         <TabsContent value="hard_rules">
           <RunTable run={hardRulesRun} showPersonaRole={false} />
         </TabsContent>
       )}
-
       {llmRun && (
         <TabsContent value="llm">
           <RunTable run={llmRun} showPersonaRole={true} />

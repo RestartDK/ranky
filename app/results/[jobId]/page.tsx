@@ -1,92 +1,42 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ResultsView } from "@/components/results-view";
-import { AppHeader } from "@/components/app-header";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import { ArrowLeft } from "@phosphor-icons/react";
-import { authClient } from "@/lib/auth-client";
+import { notFound, redirect } from "next/navigation";
+import { Header } from "@/components/header";
+import { Results } from "@/components/results";
+import { Button } from "@/components/ui/button";
+import { getJobResults } from "@/lib/results";
+import { getSession } from "@/lib/session";
 
-interface JobResult {
-  job: { id: string; status: string; createdAt: string };
-  runs: Array<{
-    id: string;
-    method: string;
-    createdAt: string;
-    results: Array<{
-      id: string;
-      qualified: boolean;
-      score: number | null;
-      personaRole: string | null;
-      companyRank: number | null;
-      rejectionReason: string | null;
-      lead: {
-        normalisedName: string | null;
-        normalisedTitle: string | null;
-        normalisedCompany: string | null;
-        normalisedFunction: string | null;
-        normalisedSeniority: string | null;
-        linkedinUrl: string | null;
-      } | null;
-    }>;
-  }>;
-}
+export default async function ResultsPage({
+  params,
+}: {
+  params: Promise<{ jobId: string }>;
+}) {
+  const session = await getSession();
 
-export default function ResultsPage() {
-  const params = useParams<{ jobId: string }>();
-  const router = useRouter();
-  const { data: session, isPending: sessionPending } = authClient.useSession();
-  const [results, setResults] = useState<JobResult | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  if (!session) {
+    redirect("/sign-in");
+  }
 
-  useEffect(() => {
-    if (!sessionPending && !session) {
-      router.push("/sign-in");
-      return;
-    }
+  const { jobId } = await params;
+  const job = await getJobResults(jobId);
 
-    if (!params.jobId) return;
-
-    fetch(`/api/rank/${params.jobId}`)
-      .then(async (res) => {
-        if (!res.ok) throw new Error("Failed to fetch results");
-        return res.json();
-      })
-      .then((data) => setResults(data))
-      .catch((err) =>
-        setError(err instanceof Error ? err.message : "Something went wrong"),
-      )
-      .finally(() => setLoading(false));
-  }, [params.jobId, session, sessionPending, router]);
-
-  if (sessionPending || !session) return null;
+  if (!job) {
+    notFound();
+  }
 
   return (
     <div className="min-h-screen bg-background">
-      <AppHeader />
+      <Header session={session} />
       <main className="mx-auto max-w-6xl px-4 py-6">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => router.push("/dashboard")}
-          className="mb-4 gap-1.5"
-        >
-          <ArrowLeft className="size-4" />
-          Back
+        <Button asChild variant="ghost" size="sm" className="mb-4 gap-1.5">
+          <Link href="/dashboard">
+            <ArrowLeft className="size-4" />
+            Back
+          </Link>
         </Button>
         <h2 className="mb-6 text-lg font-semibold">Results</h2>
-
-        {loading && (
-          <p className="text-sm text-muted-foreground">Loading results…</p>
-        )}
-
-        {error && (
-          <p className="text-sm text-destructive">{error}</p>
-        )}
-
-        {results && <ResultsView runs={results.runs} />}
+        <Results runs={job.rankingRuns} />
       </main>
     </div>
   );

@@ -44,14 +44,14 @@ export async function normaliseLeads(rows: RawLeadRow[]) {
 
   for (let i = 0; i < rows.length; i += BATCH_SIZE) {
     const batch = rows.slice(i, i + BATCH_SIZE);
-    const batchResults = await normaliseBatch(batch, i);
+    const batchResults = await normaliseBatch(batch);
     results.push(...batchResults);
   }
 
   return results;
 }
 
-async function normaliseBatch(batch: RawLeadRow[], startIndex: number) {
+async function normaliseBatch(batch: RawLeadRow[]) {
   const leadsDescription = batch
     .map((row, idx) => {
       const parts = [

@@ -1,8 +1,6 @@
 import Papa from "papaparse";
 
-export interface RawLeadRow {
-  [key: string]: string;
-}
+export type RawLeadRow = Record<string, string>;
 
 const COLUMN_ALIASES: Record<string, string[]> = {
   name: ["full name", "name", "lead_name", "contact_name"],
@@ -73,7 +71,7 @@ function normaliseColumnName(raw: string) {
   return lower;
 }
 
-export function parseCSV(csvText: string) {
+export function parseCSV(csvText: string): RawLeadRow[] {
   const result = Papa.parse<Record<string, string>>(csvText.trim(), {
     header: true,
     skipEmptyLines: true,
@@ -103,6 +101,7 @@ export function parseCSV(csvText: string) {
     if (!row.name && row.first_name && row.last_name) {
       row.name = `${row.first_name} ${row.last_name}`.trim();
     }
-    return row as RawLeadRow;
+
+    return row;
   });
 }
