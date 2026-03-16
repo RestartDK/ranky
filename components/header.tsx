@@ -15,7 +15,7 @@ export function Header({
           <RankyIcon className="size-5 text-primary" />
           <span className="text-lg font-bold tracking-tight">ranky</span>
         </Link>
-        <UserMenu name={session.user.name} />
+        <UserMenu name={session.user.name} email={session.user.email} />
       </div>
     </header>
   );

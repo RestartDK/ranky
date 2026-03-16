@@ -8,6 +8,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
@@ -20,7 +22,13 @@ function getInitials(name: string) {
     .slice(0, 2);
 }
 
-export function UserMenu({ name }: { name: string }) {
+export function UserMenu({
+  name,
+  email,
+}: {
+  name: string;
+  email: string;
+}) {
   const router = useRouter();
 
   async function handleSignOut() {
@@ -38,7 +46,11 @@ export function UserMenu({ name }: { name: string }) {
           {getInitials(name)}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-40">
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel className="truncate text-foreground">
+          {email}
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleSignOut} className="gap-2">
           <SignOut className="size-4" />
           Log out
