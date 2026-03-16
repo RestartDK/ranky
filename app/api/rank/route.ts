@@ -10,15 +10,19 @@ import { llmRank } from "@/lib/pipeline/llm-rank";
 export async function POST(req: Request) {
   try {
     const formData = await req.formData();
-    const csvFile = formData.get("csv") as File | null;
-    const personaText = formData.get("persona") as string | null;
-    const personaFile = formData.get("personaFile") as File | null;
+    const csvEntry = formData.get("csv");
+    const personaEntry = formData.get("persona");
+    const personaFileEntry = formData.get("personaFile");
+
+    const csvFile = csvEntry instanceof File ? csvEntry : null;
+    const personaText = typeof personaEntry === "string" ? personaEntry : "";
+    const personaFile = personaFileEntry instanceof File ? personaFileEntry : null;
 
     if (!csvFile) {
       return NextResponse.json({ error: "CSV file is required" }, { status: 400 });
     }
 
-    let persona = personaText || "";
+    let persona = personaText;
     if (personaFile && personaFile.size > 0) {
       persona = await personaFile.text();
     }
@@ -34,6 +38,10 @@ export async function POST(req: Request) {
       .values({ status: "processing" })
       .returning();
 
+    if (!job) {
+      throw new Error("Failed to create ranking job");
+    }
+
     try {
       // 2. Parse CSV
       const rows = parseCSV(csvText);
@@ -41,7 +49,7 @@ export async function POST(req: Request) {
       // 3. Normalise persona
       const normalisedPersona = await normalisePersona(persona);
       await db.insert(personaSpecs).values({
-        rankingJobId: job!.id,
+        rankingJobId: job.id,
         rawInput: persona,
         normalisedRules: normalisedPersona,
       });
@@ -52,7 +60,7 @@ export async function POST(req: Request) {
         .insert(leads)
         .values(
           normalisedLeads.map((l) => ({
-            rankingJobId: job!.id,
+            rankingJobId: job.id,
             rawRow: l.rawRow,
             normalisedName: l.normalisedName,
             normalisedTitle: l.normalisedTitle,
@@ -72,15 +80,25 @@ export async function POST(req: Request) {
       const hardRuleResults = applyHardRules(normalisedLeads, normalisedPersona);
       const [hardRun] = await db
         .insert(rankingRuns)
-        .values({ rankingJobId: job!.id, method: "hard_rules" })
+        .values({ rankingJobId: job.id, method: "hard_rules" })
         .returning();
+
+      if (!hardRun) {
+        throw new Error("Failed to create hard-rules run");
+      }
 
       await db.insert(leadResults).values(
         hardRuleResults.map((r) => {
           const leadIdx = normalisedLeads.indexOf(r.lead);
+          const leadId = leadIdMap.get(leadIdx);
+
+          if (!leadId) {
+            throw new Error("Failed to map hard-rules result to a lead");
+          }
+
           return {
-            rankingRunId: hardRun!.id,
-            leadId: leadIdMap.get(leadIdx)!,
+            rankingRunId: hardRun.id,
+            leadId,
             qualified: r.qualified,
             score: r.score,
             companyRank: r.companyRank,
@@ -93,15 +111,25 @@ export async function POST(req: Request) {
       const llmResults = await llmRank(normalisedLeads, normalisedPersona);
       const [llmRun] = await db
         .insert(rankingRuns)
-        .values({ rankingJobId: job!.id, method: "hard_rules_llm" })
+        .values({ rankingJobId: job.id, method: "hard_rules_llm" })
         .returning();
+
+      if (!llmRun) {
+        throw new Error("Failed to create LLM run");
+      }
 
       await db.insert(leadResults).values(
         llmResults.map((r) => {
           const leadIdx = normalisedLeads.indexOf(r.lead);
+          const leadId = leadIdMap.get(leadIdx);
+
+          if (!leadId) {
+            throw new Error("Failed to map LLM result to a lead");
+          }
+
           return {
-            rankingRunId: llmRun!.id,
-            leadId: leadIdMap.get(leadIdx)!,
+            rankingRunId: llmRun.id,
+            leadId,
             qualified: r.qualified,
             score: r.score,
             personaRole: r.personaRole,
@@ -116,15 +144,15 @@ export async function POST(req: Request) {
       await db
         .update(rankingJobs)
         .set({ status: "completed" })
-        .where(eq(rankingJobs.id, job!.id));
+        .where(eq(rankingJobs.id, job.id));
 
-      return NextResponse.json({ jobId: job!.id, status: "completed" });
+      return NextResponse.json({ jobId: job.id, status: "completed" });
     } catch (pipelineError) {
       const { eq } = await import("drizzle-orm");
       await db
         .update(rankingJobs)
         .set({ status: "failed" })
-        .where(eq(rankingJobs.id, job!.id));
+        .where(eq(rankingJobs.id, job.id));
       throw pipelineError;
     }
   } catch (error) {
