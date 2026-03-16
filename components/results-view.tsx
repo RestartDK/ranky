@@ -122,7 +122,8 @@ function SortIcon({ isSorted }: { isSorted: false | "asc" | "desc" }) {
 function buildColumns(showPersonaRole: boolean): ColumnDef<LeadResult>[] {
   const cols: ColumnDef<LeadResult>[] = [
     {
-      accessorKey: "companyRank",
+      id: "companyRank",
+      accessorFn: (row) => row.companyRank ?? undefined,
       header: ({ column }) => (
         <button
           className="flex items-center gap-1"
@@ -133,14 +134,7 @@ function buildColumns(showPersonaRole: boolean): ColumnDef<LeadResult>[] {
         </button>
       ),
       size: 60,
-      sortingFn: (rowA, rowB, columnId) => {
-        const a = rowA.getValue<number | null>(columnId);
-        const b = rowB.getValue<number | null>(columnId);
-        if (a == null && b == null) return 0;
-        if (a == null) return 1;
-        if (b == null) return -1;
-        return a - b;
-      },
+      sortUndefined: -1,
       cell: ({ row }) => {
         const rank = row.original.companyRank;
         return rank ? `#${rank}` : "—";
@@ -161,7 +155,8 @@ function buildColumns(showPersonaRole: boolean): ColumnDef<LeadResult>[] {
       ),
     },
     {
-      accessorKey: "score",
+      id: "score",
+      accessorFn: (row) => row.score ?? undefined,
       header: ({ column }) => (
         <button
           className="flex items-center gap-1"
@@ -172,14 +167,7 @@ function buildColumns(showPersonaRole: boolean): ColumnDef<LeadResult>[] {
         </button>
       ),
       size: 70,
-      sortingFn: (rowA, rowB, columnId) => {
-        const a = rowA.getValue<number | null>(columnId);
-        const b = rowB.getValue<number | null>(columnId);
-        if (a == null && b == null) return 0;
-        if (a == null) return 1;
-        if (b == null) return -1;
-        return a - b;
-      },
+      sortUndefined: -1,
       cell: ({ row }) => (
         <span className="font-mono tabular-nums">
           {row.original.score ?? "—"}
